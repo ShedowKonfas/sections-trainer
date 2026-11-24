@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сечения: куб и тетраэдр — тренажёр</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:system-ui,"Segoe UI",Roboto,Arial,sans-serif;color:#1f2d45}
+  #app{display:flex;height:100vh;width:100vw;overflow:hidden}
+  #panel{width:350px;min-width:350px;height:100%;overflow-y:auto;background:#fff;border-right:1px solid #e2e8f0;padding:16px}
+  #viewport{flex:1;position:relative;background:#f5f7fa;min-width:0}
+  #viewport canvas{display:block}
+  h1{font-size:17px;margin:0 0 6px}
+  .sub{font-size:12px;color:#64748b;margin:0 0 16px;line-height:1.4}
+  .group{margin-bottom:14px}
+  .label{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-bottom:6px}
+  .seg{display:flex;gap:6px}
+  .seg button{flex:1;padding:8px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:8px;cursor:pointer;font-size:14px}
+  .seg button.active{background:#2563eb;border-color:#2563eb;color:#fff}
+  button{padding:8px 10px;border:1px solid #cbd5e1;background:#f8fafc;border-radius:8px;cursor:pointer;font-size:13px;font-family:inherit}
+  button.primary{background:#2563eb;border-color:#2563eb;color:#fff}
+  button:disabled{opacity:.45;cursor:default}
+  .row{display:flex;gap:6px;margin:8px 0}
+  .row button{flex:1}
+  .chk{display:flex;align-items:center;gap:6px;font-size:13px;color:#334155;margin:8px 0 4px;cursor:pointer}
+  .chk input{width:15px;height:15px}
+  .hint{font-size:13px;color:#475569;background:#f1f5f9;border-radius:8px;padding:9px 10px;margin-bottom:10px;line-height:1.35}
+  .ptlist{list-style:none;padding:0;margin:0 0 8px;font-size:13px}
+  .ptlist li{padding:3px 0;border-bottom:1px dashed #e2e8f0}
+  .muted{color:#94a3b8;font-style:italic}
+  .status{font-size:13px;margin-top:8px;line-height:1.4}
+  .ok{color:#15803d;font-weight:600}
+  .err{color:#b91c1c;font-weight:600}
+  .score{font-size:13px;margin-top:12px;color:#475569}
+  #explainBox{margin-top:10px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;padding:12px}
+  #explainBox.hidden{display:none}
+  .exTitle{font-weight:700;font-size:13px;color:#1d4ed8;margin-bottom:6px}
+  .exText{font-size:13.5px;line-height:1.45;margin-bottom:10px}
+  .legend{font-size:12px;color:#64748b;line-height:1.6;margin-top:14px;border-top:1px solid #e2e8f0;padding-top:10px}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:middle}
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="panel">
+    <h1>Сечения: куб и тетраэдр</h1>
+    <p class="sub">Тренажёр построения сечений многогранников секущей плоскостью.</p>
+    <div class="group">
+      <div class="label">Тело</div>
+      <div class="seg" id="bodySeg">
+        <button data-body="cube">Куб</button>
+        <button data-body="tetra">Тетраэдр</button>
+      </div>
+    </div>
+    <div class="group">
+      <div class="label">Режим</div>
+      <div class="seg" id="modeSeg">
+        <button data-mode="learn">Изучить</button>
+        <button data-mode="task">Задачи</button>
+      </div>
+    </div>
+    <div class="group">
+      <div class="label">Инструмент</div>
+      <div class="seg" id="toolSeg">
+        <button data-tool="point">Точки</button>
+        <button data-tool="line">Линия</button>
+        <button data-tool="erase">Ластик</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="chkExtend"> Продлевать линию (след)</label>
+      <label class="chk"><input type="checkbox" id="chkFace"> Линия по грани (в плоскости грани)</label>
+      <div class="row">
+        <button id="btnUndoLine">Убрать линию</button>
+        <button id="btnClearSketch">Очистить набросок</button>
+      </div>
+      <div class="row">
+        <button id="btnClearAll">Очистить всё</button>
+      </div>
+    </div>
+    <div id="dynamic"></div>
+    <div id="explainBox" class="hidden"></div>
+    <div class="legend">
+      <div><span class="dot" style="background:#d81b60"></span>M&nbsp;&nbsp;<span class="dot" style="background:#7b1fa2"></span>N&nbsp;&nbsp;<span class="dot" style="background:#00897b"></span>K — данные точки</div>
+      <div><span class="dot" style="background:#ff6d00"></span>сечение&nbsp;&nbsp;<span class="dot" style="background:#1565c0"></span>след</div>
+      <div><span class="dot" style="background:#43a047"></span>набросок&nbsp;&nbsp;<span class="dot" style="background:#8e24aa"></span>продлённая линия (след)</div>
+      <div><span class="dot" style="background:#00acc1"></span>линия по грани&nbsp;&nbsp;<span class="dot" style="background:#ffb300"></span>пересечение линий&nbsp;&nbsp;<span class="dot" style="background:#d81b60"></span>пересечение с ребром</div>
+      <div>Вращение: зажать левую кнопку мыши и тянуть. Масштаб: колесо.</div>
+    </div>
+  </aside>
+  <main id="viewport"></main>
+</div>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ---------- helpers ---------- */
+const V3 = a => new THREE.Vector3(a[0], a[1], a[2]);
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const hex = c => '#' + c.toString(16).padStart(6, '0');
+const EPS = 1e-6;
+
+function planeFrom3(p1, p2, p3) {
+  const n = new THREE.Vector3().subVectors(p2, p1).cross(new THREE.Vector3().subVectors(p3, p1));
+  if (n.length() < 1e-6) return null;
+  n.normalize();
+  return { n, d: n.dot(p1) };
+}
+
+function planePlaneLine(pl1, pl2) {
+  const dir = new THREE.Vector3().crossVectors(pl1.n, pl2.n);
+  const dd = dir.lengthSq();
+  if (dd < 1e-9) return null;
+  const a = new THREE.Vector3().crossVectors(pl2.n, dir).multiplyScalar(pl1.d);
+  const b = new THREE.Vector3().crossVectors(dir, pl1.n).multiplyScalar(pl2.d);
+  const point = a.add(b).divideScalar(dd);
+  return { point, dir: dir.normalize() };
+}
+
+function lineLineIntersect(p, d, q, f) {
+  const df = new THREE.Vector3().crossVectors(d, f);
+  const denom = df.lengthSq();
+  if (denom < 1e-9) return null;
+  const qp = new THREE.Vector3().subVectors(q, p);
+  const s = new THREE.Vector3().crossVectors(qp, f).dot(df) / denom;
+  return p.clone().addScaledVector(d, s);
+}
+
+function linePlaneIntersect(p, dir, plane) {
+  const denom = plane.n.dot(dir);
+  if (Math.abs(denom) < 1e-9) return null;
+  const t = (plane.d - plane.n.dot(p)) / denom;
+  return p.clone().addScaledVector(dir, t);
+}
+
+function facePlane(solid, face) {
+  return planeFrom3(solid.V[face[0]], solid.V[face[1]], solid.V[face[2]]);
+}
+function faceHasEdge(solid, face, edge) {
+  return face.includes(edge[0]) && face.includes(edge[1]);
+}
+function faceContaining(solid, e1, e2) {
+  for (const f of solid.faces) if (faceHasEdge(solid, f, e1) && faceHasEdge(solid, f, e2)) return f;
+  return null;
+}
+
+/* ---------- solids ---------- */
+const SOLIDS = {
+  cube: {
+    label: 'Куб',
+    V: {
+      A: V3([-1, -1, -1]), B: V3([1, -1, -1]), C: V3([1, -1, 1]), D: V3([-1, -1, 1]),
+      A1: V3([-1, 1, -1]), B1: V3([1, 1, -1]), C1: V3([1, 1, 1]), D1: V3([-1, 1, 1])
+    },
+    order: ['A', 'B', 'C', 'D', 'A1', 'B1', 'C1', 'D1'],
+    disp: { A: 'A', B: 'B', C: 'C', D: 'D', A1: 'A₁', B1: 'B₁', C1: 'C₁', D1: 'D₁' },
+    edges: [['A', 'B'], ['B', 'C'], ['C', 'D'], ['D', 'A'],
+            ['A1', 'B1'], ['B1', 'C1'], ['C1', 'D1'], ['D1', 'A1'],
+            ['A', 'A1'], ['B', 'B1'], ['C', 'C1'], ['D', 'D1']],
+    faces: [['A', 'B', 'C', 'D'], ['A1', 'B1', 'C1', 'D1'],
+            ['A', 'B', 'B1', 'A1'], ['B', 'C', 'C1', 'B1'],
+            ['C', 'D', 'D1', 'C1'], ['D', 'A', 'A1', 'D1']]
+  },
+  tetra: {
+    label: 'Тетраэдр',
+    V: { A: V3([1, 1, 1]), B: V3([1, -1, -1]), C: V3([-1, 1, -1]), D: V3([-1, -1, 1]) },
+    order: ['A', 'B', 'C', 'D'],
+    disp: { A: 'A', B: 'B', C: 'C', D: 'D' },
+    edges: [['A', 'B'], ['A', 'C'], ['A', 'D'], ['B', 'C'], ['B', 'D'], ['C', 'D']],
+    faces: [['A', 'B', 'C'], ['A', 'B', 'D'], ['A', 'C', 'D'], ['B', 'C', 'D']]
+  }
+};
+
+function edgeName(solid, e) { return solid.disp[e[0]] + solid.disp[e[1]]; }
+function faceName(solid, f) { return f.map(n => solid.disp[n]).join(''); }
+function ptEdgeLabel(solid, p) {
+  if (p.edge) return 'ребро ' + edgeName(solid, p.edge);
+  return 'точка (' + p.pos.x.toFixed(2) + '; ' + p.pos.y.toFixed(2) + '; ' + p.pos.z.toFixed(2) + ')';
+}
+function polyName(n) {
+  return ({ 3: 'треугольник', 4: 'четырёхугольник', 5: 'пятиугольник', 6: 'шестиугольник' })[n] || (n + '-угольник');
+}
+
+/* ---------- cross-section of a convex polyhedron by a plane ---------- */
+function computeSection(solid, plane) {
+  const { n, d } = plane;
+  const raw = [];
+  for (const e of solid.edges) {
+    const A = solid.V[e[0]], B = solid.V[e[1]];
+    const sa = n.dot(A) - d, sb = n.dot(B) - d;
+    if (Math.abs(sa) < EPS && Math.abs(sb) < EPS) continue;
+    let pos = null;
+    if (Math.abs(sa) < EPS) pos = A.clone();
+    else if (Math.abs(sb) < EPS) pos = B.clone();
+    else if (sa * sb < 0) pos = new THREE.Vector3().lerpVectors(A, B, sa / (sa - sb));
+    if (!pos) continue;
+    if (!raw.some(r => r.pos.distanceTo(pos) < 1e-4)) raw.push({ pos, edge: [...e] });
+  }
+  if (raw.length >= 3) {
+    const c = new THREE.Vector3();
+    raw.forEach(r => c.add(r.pos));
+    c.multiplyScalar(1 / raw.length);
+    let u = new THREE.Vector3(1, 0, 0);
+    if (Math.abs(n.dot(u)) > 0.9) u.set(0, 1, 0);
+    u.crossVectors(n, u).normalize();
+    const v = new THREE.Vector3().crossVectors(n, u).normalize();
+    raw.forEach(r => {
+      const rv = new THREE.Vector3().subVectors(r.pos, c);
+      r.angle = Math.atan2(rv.dot(v), rv.dot(u));
+    });
+    raw.sort((a, b) => a.angle - b.angle);
+  }
+  return raw;
+}
+/* ---------- three.js scene ---------- */
+const viewport = document.getElementById('viewport');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+viewport.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf5f7fa);
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 300);
+camera.position.set(4.4, 3.4, 6.2);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, 0, 0);
+controls.minDistance = 2.5;
+controls.maxDistance = 30;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.95));
+const dl1 = new THREE.DirectionalLight(0xffffff, 0.75); dl1.position.set(6, 10, 8); scene.add(dl1);
+const dl2 = new THREE.DirectionalLight(0xffffff, 0.35); dl2.position.set(-6, -7, -8); scene.add(dl2);
+
+const solidGroup = new THREE.Group(); scene.add(solidGroup);
+const sectionGroup = new THREE.Group(); scene.add(sectionGroup);
+const pointsGroup = new THREE.Group(); scene.add(pointsGroup);
+const taskGroup = new THREE.Group(); scene.add(taskGroup);
+const explainGroup = new THREE.Group(); scene.add(explainGroup);
+const sketchGroup = new THREE.Group(); scene.add(sketchGroup);
+const previewGroup = new THREE.Group(); scene.add(previewGroup);
+
+function resize() {
+  const w = viewport.clientWidth || 1, h = viewport.clientHeight || 1;
+  renderer.setSize(w, h, false);
+  renderer.domElement.style.width = '100%';
+  renderer.domElement.style.height = '100%';
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(viewport);
+
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+/* ---------- visual helpers ---------- */
+function disposeObj(o) {
+  if (o.geometry) o.geometry.dispose();
+  const mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+  mats.forEach(m => { if (m.map) m.map.dispose(); m.dispose(); });
+}
+function clearGroup(g) {
+  while (g.children.length) disposeObj(g.children.pop());
+}
+
+function makeLabel(text, color, scale = 0.4) {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+  ctx.fillStyle = color;
+  ctx.font = 'bold 82px "Segoe UI", Arial, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, size / 2, size / 2 + 4);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.anisotropy = 4;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false }));
+  sp.scale.set(scale, scale, scale);
+  sp.renderOrder = 20;
+  return sp;
+}
+
+function makePoint(pos, color, size = 0.075) {
+  const m = new THREE.Mesh(
+    new THREE.SphereGeometry(size, 18, 18),
+    new THREE.MeshStandardMaterial({ color, emissive: new THREE.Color(color).multiplyScalar(0.35), roughness: 0.45, metalness: 0.0 })
+  );
+  m.position.copy(pos);
+  return m;
+}
+
+function labelAt(text, color, pos, scale = 0.34) {
+  const l = makeLabel(text, hex(color), scale);
+  const off = pos.clone().normalize().multiplyScalar(0.2);
+  l.position.copy(pos).add(off);
+  return l;
+}
+
+function triangulateFace(solid, face) {
+  const verts = face.map(n => solid.V[n]);
+  const out = [];
+  for (let i = 1; i < verts.length - 1; i++) out.push(verts[0], verts[i], verts[i + 1]);
+  return out;
+}
+
+/* ---------- solid rendering ---------- */
+let currentSolid = null;
+let edgeObjs = [];
+let faceMeshes = [];
+const EDGE_DEFAULT = 0x2b3a55;
+
+function buildSolid(key) {
+  currentSolid = SOLIDS[key];
+  clearGroup(solidGroup);
+  edgeObjs = []; faceMeshes = [];
+
+  currentSolid.faces.forEach((f, fi) => {
+    const g = new THREE.BufferGeometry().setFromPoints(triangulateFace(currentSolid, f));
+    g.computeVertexNormals();
+    const mesh = new THREE.Mesh(g, new THREE.MeshStandardMaterial({
+      color: 0x6f9bd8, transparent: true, opacity: 0.10, side: THREE.DoubleSide, depthWrite: false, roughness: 0.9, metalness: 0
+    }));
+    mesh.userData = { face: f, faceIndex: fi };
+    solidGroup.add(mesh);
+    faceMeshes.push(mesh);
+  });
+  currentSolid.edges.forEach((e, i) => {
+    const a = currentSolid.V[e[0]], b = currentSolid.V[e[1]];
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([a, b]),
+      new THREE.LineBasicMaterial({ color: EDGE_DEFAULT })
+    );
+    line.userData = { edge: e, index: i };
+    solidGroup.add(line);
+    edgeObjs.push(line);
+  });
+
+  currentSolid.order.forEach(name => {
+    const p = currentSolid.V[name];
+    const l = makeLabel(currentSolid.disp[name], '#1f2d45', 0.42);
+    l.position.copy(p.clone().multiplyScalar(1.14));
+    solidGroup.add(l);
+  });
+}
+
+function resetEdges() { edgeObjs.forEach(l => l.material.color.setHex(EDGE_DEFAULT)); }
+function colorEdge(i, color) { if (edgeObjs[i]) edgeObjs[i].material.color.setHex(color); }
+/* ---------- section rendering ---------- */
+function addPolygon(group, items, fill, opacity, lineColor, showVerts) {
+  const pts = items.map(it => it.pos);
+  if (pts.length < 3) return;
+  const positions = [];
+  for (let i = 1; i < pts.length - 1; i++) {
+    positions.push(pts[0].x, pts[0].y, pts[0].z, pts[i].x, pts[i].y, pts[i].z, pts[i + 1].x, pts[i + 1].y, pts[i + 1].z);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: fill, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false })));
+  const loop = pts.concat([pts[0]]);
+  group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(loop), new THREE.LineBasicMaterial({ color: lineColor })));
+  if (showVerts) items.forEach(it => group.add(makePoint(it.pos, lineColor, 0.055)));
+}
+
+function renderSection(items) {
+  clearGroup(sectionGroup);
+  addPolygon(sectionGroup, items, 0xffa726, 0.4, 0xff6d00, false);
+}
+
+/* ---------- task generation ---------- */
+function shuffled(n) {
+  const a = [...Array(n).keys()];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+function generateTask(solid) {
+  for (let attempt = 0; attempt < 800; attempt++) {
+    const idx = shuffled(solid.edges.length).slice(0, 3);
+    const pts = idx.map(i => {
+      const e = solid.edges[i];
+      const t = 0.2 + Math.random() * 0.6;
+      return { pos: new THREE.Vector3().lerpVectors(solid.V[e[0]], solid.V[e[1]], t), edge: [...e], edgeIndex: i };
+    });
+    const plane = planeFrom3(pts[0].pos, pts[1].pos, pts[2].pos);
+    if (!plane) continue;
+    const section = computeSection(solid, plane);
+    if (section.length < 3) continue;
+    let ok = true;
+    for (const it of section) {
+      for (const name of solid.order) if (it.pos.distanceTo(solid.V[name]) < 0.1) { ok = false; break; }
+      if (!ok) break;
+    }
+    if (!ok) continue;
+    for (let a = 0; a < section.length && ok; a++)
+      for (let b = a + 1; b < section.length; b++)
+        if (section[a].pos.distanceTo(section[b].pos) < 0.15) { ok = false; break; }
+    if (!ok) continue;
+    return { points: pts, plane, section };
+  }
+  return null;
+}
+
+/* ---------- interaction ---------- */
+const raycaster = new THREE.Raycaster();
+raycaster.params.Line.threshold = 0.12;
+const POINT_COLORS = [0xd81b60, 0x7b1fa2, 0x00897b];
+const POINT_NAMES = ['M', 'N', 'K'];
+
+function getSurfaceHit(ev) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const mouse = new THREE.Vector2(
+    ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+    -((ev.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects([...faceMeshes, ...edgeObjs], false);
+  return hits.length ? hits[0].point.clone() : null;
+}
+
+function snapToNearestEdge(p) {
+  let best = null, bestD = Infinity;
+  currentSolid.edges.forEach((e, i) => {
+    const A = currentSolid.V[e[0]], B = currentSolid.V[e[1]];
+    const ab = new THREE.Vector3().subVectors(B, A);
+    const t = clamp(new THREE.Vector3().subVectors(p, A).dot(ab) / ab.lengthSq(), 0.1, 0.9);
+    const q = A.clone().addScaledVector(ab, t);
+    const dd = q.distanceToSquared(p);
+    if (dd < bestD) { bestD = dd; best = { pos: q, edge: [...e], index: i, t, dist: Math.sqrt(dd) }; }
+  });
+  return best;
+}
+
+function getFaceHit(ev) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const mouse = new THREE.Vector2(
+    ((ev.clientX - rect.left) / rect.width) * 2 - 1,
+    -((ev.clientY - rect.top) / rect.height) * 2 + 1
+  );
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(faceMeshes, false);
+  if (!hits.length) return null;
+  const h = hits[0];
+  const idx = faceMeshes.indexOf(h.object);
+  return { point: h.point.clone(), faceIndex: idx, face: currentSolid.faces[idx] };
+}
+
+function projectToPlane(p, plane) {
+  const dist = plane.n.dot(p) - plane.d;
+  return p.clone().addScaledVector(plane.n, -dist);
+}
+
+function screenDist(ev, p) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  const v = p.clone().project(camera);
+  const sx = rect.left + (v.x * 0.5 + 0.5) * rect.width;
+  const sy = rect.top + (-v.y * 0.5 + 0.5) * rect.height;
+  return Math.hypot(sx - ev.clientX, sy - ev.clientY);
+}
+
+/* segment/line intersection; l = {a,b,extended}. Returns point or null */
+function segmentIntersection(l1, l2) {
+  const d = new THREE.Vector3().subVectors(l1.b, l1.a);
+  const f = new THREE.Vector3().subVectors(l2.b, l2.a);
+  if (d.lengthSq() < 1e-9 || f.lengthSq() < 1e-9) return null;
+  const dn = d.clone().normalize(), fn = f.clone().normalize();
+  const x = lineLineIntersect(l1.a, dn, l2.a, fn);
+  if (!x) return null;
+  const w = new THREE.Vector3().subVectors(x, l2.a);
+  const perp = w.clone().addScaledVector(fn, -w.dot(fn));
+  if (perp.length() > 0.06) return null;
+  const u = new THREE.Vector3().subVectors(x, l1.a).dot(d) / d.lengthSq();
+  const v = new THREE.Vector3().subVectors(x, l2.a).dot(f) / f.lengthSq();
+  if (!l1.extended && (u < -0.001 || u > 1.001)) return null;
+  if (!l2.extended && (v < -0.001 || v > 1.001)) return null;
+  return x;
+}
+
+/* intersections of drawn lines with each other and with solid edges */
+function collectIntersections() {
+  const out = [];
+  const lines = state.sketch.map(l => ({ a: l.a, b: l.b, extended: !!l.extended }));
+  const edges = currentSolid.edges.map(e => ({ a: currentSolid.V[e[0]], b: currentSolid.V[e[1]], extended: false }));
+  const push = (x, kind) => {
+    if (!x || x.length() > 3) return;
+    const ex = out.find(p => p.pos.distanceTo(x) < 1e-3);
+    if (ex) { if (kind === 'll') ex.kind = 'll'; return; }
+    out.push({ pos: x, kind });
+  };
+  for (let i = 0; i < lines.length; i++) {
+    for (let j = i + 1; j < lines.length; j++) push(segmentIntersection(lines[i], lines[j]), 'll');
+    for (const e of edges) push(segmentIntersection(lines[i], e), 'le');
+  }
+  return out;
+}
+
+/* clip a line (through p1,p2) to the polygon of a face, returning the chord */
+function clipLineToFace(face, p1, p2) {
+  const dir = new THREE.Vector3().subVectors(p2, p1);
+  if (dir.lengthSq() < 1e-9) return null;
+  dir.normalize();
+  const verts = face.map(n => currentSolid.V[n]);
+  const hits = [];
+  for (let i = 0; i < verts.length; i++) {
+    const A = verts[i], B = verts[(i + 1) % verts.length];
+    const f = new THREE.Vector3().subVectors(B, A);
+    const x = lineLineIntersect(p1, dir, A, f);
+    if (!x) continue;
+    const u = new THREE.Vector3().subVectors(x, A).dot(f) / f.lengthSq();
+    if (u < -1e-6 || u > 1 + 1e-6) continue;
+    const w = new THREE.Vector3().subVectors(x, p1);
+    const perp = w.clone().addScaledVector(dir, -w.dot(dir));
+    if (perp.length() > 0.05) continue;
+    if (!hits.some(p => p.distanceTo(x) < 1e-3)) hits.push(x);
+  }
+  if (hits.length < 2) return null;
+  let best = null, bd = -1;
+  for (let i = 0; i < hits.length; i++)
+    for (let j = i + 1; j < hits.length; j++) {
+      const dd = hits[i].distanceToSquared(hits[j]);
+      if (dd > bd) { bd = dd; best = [hits[i], hits[j]]; }
+    }
+  return { a: best[0], b: best[1] };
+}
+
+/* ---------- line drawing / sketch ---------- */
+function collectCandidatePoints() {
+  const pts = [];
+  if (state.mode === 'learn') {
+    state.learnPoints.forEach(p => pts.push(p.pos));
+    if (state.learnPoints.length === 3) {
+      const pl = planeFrom3(state.learnPoints[0].pos, state.learnPoints[1].pos, state.learnPoints[2].pos);
+      if (pl) computeSection(currentSolid, pl).forEach(it => pts.push(it.pos));
+    }
+  } else {
+    if (state.task) state.task.points.forEach(p => pts.push(p.pos));
+    state.userPoints.forEach(p => pts.push(p.pos));
+  }
+  state.sketch.forEach(l => { pts.push(l.a); pts.push(l.b); });
+  return pts;
+}
+
+function getSnapPoint(ev) {
+  const hit = getSurfaceHit(ev);
+  if (!hit) return null;
+  let best = null, bd = 0.3;
+  for (const p of collectCandidatePoints()) {
+    const d = p.distanceTo(hit);
+    if (d < bd) { bd = d; best = { pos: p.clone(), type: 'point' }; }
+  }
+  if (best) return best;
+  let ibest = null, ibd = 15;
+  for (const it of collectIntersections()) {
+    const d = screenDist(ev, it.pos);
+    if (d < ibd) { ibd = d; ibest = it.pos; }
+  }
+  if (ibest) return { pos: ibest.clone(), type: 'intersect' };
+  const edge = snapToNearestEdge(hit);
+  if (edge && edge.dist < 0.22) return { pos: edge.pos, type: 'edge', edge: edge.edge, index: edge.index };
+  return { pos: hit, type: 'face' };
+}
+
+function lineEdgeIntersections(a, dir) {
+  const out = [];
+  for (const e of currentSolid.edges) {
+    const A = currentSolid.V[e[0]], B = currentSolid.V[e[1]];
+    const f = new THREE.Vector3().subVectors(B, A);
+    const x = lineLineIntersect(a, dir, A, f);
+    if (!x) continue;
+    const u = new THREE.Vector3().subVectors(x, A).dot(f) / f.lengthSq();
+    if (u < -1e-6 || u > 1 + 1e-6) continue;
+    const fh = f.clone().normalize();
+    const w = new THREE.Vector3().subVectors(x, A);
+    const perp = w.clone().addScaledVector(fh, -w.dot(fh));
+    if (perp.length() > 0.06) continue;
+    if (!out.some(p => p.distanceTo(x) < 1e-3)) out.push(x);
+  }
+  return out;
+}
+
+function renderSketch() {
+  clearGroup(sketchGroup);
+  for (const l of state.sketch) {
+    if (l.byFace) {
+      sketchGroup.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([l.a, l.b]),
+        new THREE.LineBasicMaterial({ color: 0x00acc1 })
+      ));
+      sketchGroup.add(makePoint(l.a, 0x00acc1, 0.045));
+      sketchGroup.add(makePoint(l.b, 0x00acc1, 0.045));
+      continue;
+    }
+    const color = l.extended ? 0x8e24aa : 0x43a047;
+    const dir = new THREE.Vector3().subVectors(l.b, l.a).normalize();
+    let p0 = l.a, p1 = l.b;
+    if (l.extended) {
+      p0 = l.a.clone().addScaledVector(dir, -9);
+      p1 = l.a.clone().addScaledVector(dir, 9);
+    }
+    sketchGroup.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([p0, p1]),
+      new THREE.LineBasicMaterial({ color })
+    ));
+    sketchGroup.add(makePoint(l.a, color, 0.045));
+    sketchGroup.add(makePoint(l.b, color, 0.045));
+  }
+  collectIntersections().forEach(it => sketchGroup.add(makePoint(it.pos, it.kind === 'll' ? 0xffb300 : 0xd81b60, 0.045)));
+  if (state.faceLock) addFaceHighlightTo(sketchGroup, state.faceLock.face, 0x26c6da, 0.22);
+  if (state.lineStart) sketchGroup.add(makePoint(state.lineStart.pos, 0x8e24aa, 0.07));
+}
+
+function updatePreview(current) {
+  clearGroup(previewGroup);
+  if (!state.lineStart || !current) return;
+  const a = state.lineStart.pos;
+  let b = current.pos;
+  let pa = a, pb = b;
+  if (state.byFace && state.faceLock) {
+    const chord = clipLineToFace(state.faceLock.face, a, projectToPlane(b, state.faceLock.plane));
+    if (chord) { pa = chord.a; pb = chord.b; }
+  }
+  if (pa.distanceTo(pb) < 1e-3) return;
+  const line = new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([pa, pb]),
+    new THREE.LineDashedMaterial({ color: 0x8e24aa, dashSize: 0.15, gapSize: 0.1 })
+  );
+  line.computeLineDistances();
+  previewGroup.add(line);
+}
+
+function clearSketch() {
+  state.sketch = [];
+  state.lineStart = null;
+  clearGroup(sketchGroup);
+  clearGroup(previewGroup);
+}
+
+function clearAll() {
+  state.learnPoints = [];
+  state.userPoints = [];
+  state.sketch = [];
+  state.lineStart = null;
+  state.faceLock = null;
+  clearGroup(pointsGroup);
+  clearGroup(sectionGroup);
+  clearGroup(sketchGroup);
+  clearGroup(previewGroup);
+  resetEdges();
+  updatePanel();
+}
+
+function handleLineClick(ev) {
+  if (state.byFace) { handleFaceLineClick(ev); return; }
+  const snap = getSnapPoint(ev);
+  if (!snap) return;
+  if (!state.lineStart) { state.lineStart = snap; renderSketch(); return; }
+  const a = state.lineStart.pos.clone(), b = snap.pos.clone();
+  if (a.distanceTo(b) > 1e-3) state.sketch.push({ a, b, extended: state.extend });
+  state.lineStart = null;
+  clearGroup(previewGroup);
+  renderSketch();
+}
+
+function handleFaceLineClick(ev) {
+  const fh = getFaceHit(ev);
+  if (!fh) return;
+  if (!state.faceLock) {
+    const pl = facePlane(currentSolid, fh.face);
+    if (!pl) return;
+    state.faceLock = { face: fh.face, faceIndex: fh.faceIndex, plane: pl };
+    state.lineStart = { pos: fh.point.clone(), type: 'face' };
+    renderSketch();
+    return;
+  }
+  const pl = state.faceLock.plane;
+  const p1 = state.lineStart.pos;
+  const p2 = projectToPlane(fh.point, pl);
+  const chord = clipLineToFace(state.faceLock.face, p1, p2);
+  if (chord) state.sketch.push({ a: chord.a, b: chord.b, extended: false, byFace: true, face: state.faceLock.face });
+  state.faceLock = null;
+  state.lineStart = null;
+  clearGroup(previewGroup);
+  renderSketch();
+}
+
+function handleEraseClick(ev) {
+  const hit = getSurfaceHit(ev);
+  if (!hit) return;
+  let best = null, bd = 0.25;
+  const consider = (pos, kind, ref) => {
+    const d = pos.distanceTo(hit);
+    if (d < bd) { bd = d; best = { kind, ref }; }
+  };
+  if (state.mode === 'learn') state.learnPoints.forEach((p, i) => consider(p.pos, 'learn', i));
+  else state.userPoints.forEach((p, i) => consider(p.pos, 'user', i));
+  state.sketch.forEach((l, i) => { consider(l.a, 'sketch', i); consider(l.b, 'sketch', i); });
+  if (!best) return;
+  if (best.kind === 'learn') { state.learnPoints.splice(best.ref, 1); updateLearn(); }
+  else if (best.kind === 'user') { state.userPoints.splice(best.ref, 1); updateTaskVisual(); updatePanel(); }
+  else { state.sketch.splice(best.ref, 1); renderSketch(); }
+}
+
+let down = null, moved = false;
+renderer.domElement.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; moved = false; });
+renderer.domElement.addEventListener('pointermove', e => {
+  if (down) {
+    const dx = e.clientX - down.x, dy = e.clientY - down.y;
+    if (dx * dx + dy * dy > 25) moved = true;
+  }
+  if (state.tool === 'line' && state.lineStart && !state.explaining) {
+    let cur = null;
+    if (state.byFace) { const fh = getFaceHit(e); if (fh) cur = { pos: fh.point }; }
+    else cur = getSnapPoint(e);
+    updatePreview(cur);
+  }
+});
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!down) return;
+  const dt = performance.now() - down.t;
+  const dx = e.clientX - down.x, dy = e.clientY - down.y;
+  const isClick = !moved && dt < 500 && (dx * dx + dy * dy < 25);
+  down = null;
+  if (isClick) handleClick(e);
+});
+
+function handleClick(ev) {
+  if (state.explaining) return;
+  if (state.tool === 'line') { handleLineClick(ev); return; }
+  if (state.tool === 'erase') { handleEraseClick(ev); return; }
+  const snap = getSnapPoint(ev);
+  if (!snap) return;
+  if (state.mode === 'learn') {
+    if (state.learnPoints.length >= 3) return;
+    state.learnPoints.push({ pos: snap.pos.clone(), edge: snap.edge ? [...snap.edge] : null, index: snap.index != null ? snap.index : null });
+    updateLearn();
+  } else {
+    if (!state.task || state.userPoints.length >= 8) return;
+    state.userPoints.push({ pos: snap.pos.clone(), edge: snap.edge ? [...snap.edge] : null, status: '' });
+    updateTaskVisual();
+  }
+}
+/* ---------- state & modes ---------- */
+const state = { body: 'cube', mode: 'learn', learnPoints: [], userPoints: [], task: null, solved: 0, explaining: false, step: 0, tool: 'point', extend: false, byFace: false, faceLock: null, sketch: [], lineStart: null };
+let explanation = null;
+
+function updateLearn() {
+  clearGroup(pointsGroup);
+  resetEdges();
+  state.learnPoints.forEach((pt, i) => {
+    pointsGroup.add(makePoint(pt.pos, POINT_COLORS[i]));
+    pointsGroup.add(labelAt(POINT_NAMES[i], POINT_COLORS[i], pt.pos, 0.36));
+    if (pt.index != null) colorEdge(pt.index, 0x94a3b8);
+  });
+  clearGroup(sectionGroup);
+  if (state.learnPoints.length === 3) {
+    const pl = planeFrom3(state.learnPoints[0].pos, state.learnPoints[1].pos, state.learnPoints[2].pos);
+    if (pl) {
+      const sec = computeSection(currentSolid, pl);
+      if (sec.length >= 3) renderSection(sec);
+    }
+  }
+  updatePanel();
+}
+
+function newTask() {
+  state.userPoints = [];
+  clearGroup(pointsGroup); clearGroup(sectionGroup); clearGroup(taskGroup);
+  resetEdges();
+  state.task = generateTask(currentSolid);
+  if (!state.task) { updatePanel(); return; }
+  state.task.points.forEach((pt, i) => {
+    taskGroup.add(makePoint(pt.pos, POINT_COLORS[i]));
+    taskGroup.add(labelAt(POINT_NAMES[i], POINT_COLORS[i], pt.pos, 0.36));
+  });
+  updatePanel();
+}
+
+function updateTaskVisual() {
+  clearGroup(pointsGroup);
+  state.userPoints.forEach((p, i) => {
+    const col = p.status === 'ok' ? 0x2e7d32 : p.status === 'bad' ? 0xc62828 : 0x1565c0;
+    pointsGroup.add(makePoint(p.pos, col, 0.07));
+    pointsGroup.add(labelAt(String(i + 1), col, p.pos, 0.3));
+  });
+}
+
+function checkTask() {
+  if (!state.task) return;
+  const correct = state.task.section.map(it => it.pos);
+  const used = new Array(correct.length).fill(false);
+  let matched = 0;
+  state.userPoints.forEach(p => {
+    let found = -1;
+    for (let i = 0; i < correct.length; i++) if (!used[i] && p.pos.distanceTo(correct[i]) < 0.18) { found = i; break; }
+    if (found >= 0) { used[found] = true; p.status = 'ok'; matched++; }
+    else p.status = 'bad';
+  });
+  updateTaskVisual();
+  const st = document.getElementById('taskStatus');
+  const missing = correct.filter((_, i) => !used[i]).length;
+  if (matched === correct.length && state.userPoints.every(p => p.status === 'ok')) {
+    st.innerHTML = '<span class="ok">Верно!</span> Сечение построено — ' + correct.length + ' ' + (correct.length === 1 ? 'вершина' : 'вершин') + '.';
+    renderSection(state.task.section);
+    if (!state.task._solved) { state.task._solved = true; state.solved++; }
+    const sc = document.getElementById('scoreVal'); if (sc) sc.textContent = state.solved;
+  } else {
+    st.innerHTML = '<span class="err">Пока неверно.</span> Верно отмечено: ' + matched + ' из ' + correct.length +
+      (missing ? ' (не хватает ' + missing + ')' : '') +
+      (state.userPoints.some(p => p.status === 'bad') ? ' — есть лишние точки.' : '.');
+  }
+}
+
+function updateSegActive() {
+  document.querySelectorAll('#bodySeg button').forEach(b => b.classList.toggle('active', b.dataset.body === state.body));
+  document.querySelectorAll('#modeSeg button').forEach(b => b.classList.toggle('active', b.dataset.mode === state.mode));
+  document.querySelectorAll('#toolSeg button').forEach(b => b.classList.toggle('active', b.dataset.tool === state.tool));
+}
+
+function setTool(t) {
+  state.tool = t;
+  state.lineStart = null;
+  state.faceLock = null;
+  clearGroup(previewGroup);
+  renderSketch();
+  updateSegActive();
+  updatePanel();
+}
+
+function setBody(key) {
+  if (state.explaining) closeExplanation();
+  state.body = key;
+  buildSolid(key);
+  clearSketch();
+  state.learnPoints = []; state.userPoints = []; state.task = null;
+  clearGroup(pointsGroup); clearGroup(sectionGroup); clearGroup(taskGroup);
+  resetEdges();
+  if (state.mode === 'task') newTask(); else updatePanel();
+  updateSegActive();
+}
+
+function setMode(m) {
+  if (state.explaining) closeExplanation();
+  state.mode = m;
+  state.learnPoints = []; state.userPoints = []; state.task = null;
+  clearGroup(pointsGroup); clearGroup(sectionGroup); clearGroup(taskGroup);
+  resetEdges();
+  if (m === 'task') newTask(); else updatePanel();
+  updateSegActive();
+}
+
+function updatePanel() {
+  const dyn = document.getElementById('dynamic');
+  const toolHint = state.tool === 'line'
+    ? '<div class="hint" style="background:#f3e8ff;color:#6b21a8">Инструмент «Линия»: кликните дважды — по точкам, рёбрам, граням или пересечениям линий (жёлтые метки). «Продлевать линию» даёт след, «Линия по грани» кладёт линию строго в плоскость выбранной грани.</div>'
+    : state.tool === 'erase'
+      ? '<div class="hint" style="background:#fee2e2;color:#991b1b">Инструмент «Ластик»: кликните по точке (M/N/K, вершине ответа или концу линии наброска), чтобы удалить её.</div>'
+      : '<div class="hint" style="background:#e0f2fe;color:#075985">Инструмент «Точки»: клик по ребру, грани или по пересечению нарисованных линий (жёлтая метка) поставит туда точку.</div>';
+  if (state.mode === 'learn') {
+    const pts = state.learnPoints;
+    const list = pts.map((p, i) => '<li><b>' + POINT_NAMES[i] + '</b> — ' + ptEdgeLabel(currentSolid, p) + '</li>').join('');
+    dyn.innerHTML = toolHint +
+      '<div class="hint">Кликните по рёбрам, чтобы отметить три точки <b>M</b>, <b>N</b>, <b>K</b>. Сечение построится автоматически.</div>' +
+      '<ul class="ptlist">' + (list || '<li class="muted">точек пока нет</li>') + '</ul>' +
+      '<div class="row"><button id="btnUndo"' + (pts.length ? '' : ' disabled') + '>Убрать точку</button>' +
+      '<button id="btnClear"' + (pts.length ? '' : ' disabled') + '>Очистить</button></div>' +
+      '<button id="btnExplain" class="primary"' + (pts.length === 3 ? '' : ' disabled') + '>Объяснить построение</button>' +
+      (pts.length === 3 ? '' : '<div class="status">Осталось отметить точек: <b>' + (3 - pts.length) + '</b></div>');
+    const u = document.getElementById('btnUndo'); if (u) u.onclick = () => { state.learnPoints.pop(); updateLearn(); };
+    const c = document.getElementById('btnClear'); if (c) c.onclick = () => { state.learnPoints = []; clearGroup(sectionGroup); resetEdges(); updateLearn(); };
+    const e = document.getElementById('btnExplain'); if (e) e.onclick = openExplanation;
+  } else {
+    dyn.innerHTML = toolHint +
+      '<div class="hint">Постройте сечение плоскостью, проходящей через точки <b>M</b>, <b>N</b>, <b>K</b>. Отметьте все вершины сечения, кликая по рёбрам (клик прилипает к ближайшему ребру).</div>' +
+      '<div class="row"><button id="btnCheck" class="primary">Проверить</button>' +
+      '<button id="btnExplain">Объяснить решение</button></div>' +
+      '<div class="row"><button id="btnUndoPt"' + (state.userPoints.length ? '' : ' disabled') + '>Убрать точку</button>' +
+      '<button id="btnNew">Новая задача</button></div>' +
+      '<div id="taskStatus" class="status"></div>' +
+      '<div class="score">Решено задач: <b id="scoreVal">' + state.solved + '</b></div>';
+    document.getElementById('btnCheck').onclick = checkTask;
+    document.getElementById('btnExplain').onclick = openExplanation;
+    document.getElementById('btnUndoPt').onclick = () => { state.userPoints.pop(); updateTaskVisual(); updatePanel(); };
+    document.getElementById('btnNew').onclick = newTask;
+  }
+}
+/* ---------- step-by-step explanation (trace method) ---------- */
+function buildExplanation() {
+  const solid = currentSolid;
+  const given = (state.mode === 'task' ? state.task.points : state.learnPoints)
+    .map(p => ({ pos: p.pos.clone(), edge: p.edge ? [...p.edge] : null }));
+  if (given.length < 3) return null;
+  const plane = planeFrom3(given[0].pos, given[1].pos, given[2].pos);
+  if (!plane) return null;
+  const section = computeSection(solid, plane);
+  if (section.length < 3) return null;
+
+  let base = null;
+  solid.faces.forEach(f => {
+    const fp = facePlane(solid, f);
+    if (!fp) return;
+    const parallel = Math.abs(fp.n.dot(plane.n)) > 0.999;
+    let cnt = 0;
+    for (const it of section) if (faceHasEdge(solid, f, it.edge)) cnt++;
+    const cand = { face: f, plane: fp, parallel, cnt };
+    const score = c => (c.parallel ? -100 : 0) + c.cnt;
+    if (!base || score(cand) > score(base)) base = cand;
+  });
+
+  const trace = planePlaneLine(plane, base.plane);
+
+  const tps = [];
+  [[0, 1], [1, 2], [0, 2]].forEach(([i, j]) => {
+    const p = given[i].pos, q = given[j].pos;
+    const d = new THREE.Vector3().subVectors(q, p);
+    const x = linePlaneIntersect(p, d, base.plane);
+    if (x && x.length() < 25 && !tps.some(t => t.pos.distanceTo(x) < 0.1)) tps.push({ pos: x, pair: [i, j] });
+  });
+
+  const baseEdges = solid.edges.filter(e => faceHasEdge(solid, base.face, e));
+  const inter = [];
+  if (trace) {
+    for (const e of baseEdges) {
+      const A = solid.V[e[0]], B = solid.V[e[1]];
+      const f = new THREE.Vector3().subVectors(B, A);
+      const x = lineLineIntersect(trace.point, trace.dir, A, f);
+      if (!x) continue;
+      const u = new THREE.Vector3().subVectors(x, A).dot(f) / f.lengthSq();
+      inter.push({ edge: [...e], pos: x, u, onSeg: u > -1e-6 && u < 1 + 1e-6 });
+    }
+  }
+
+  const sides = [];
+  for (let i = 0; i < section.length; i++) {
+    const a = section[i], b = section[(i + 1) % section.length];
+    sides.push({ a: a.pos.clone(), b: b.pos.clone(), face: faceContaining(solid, a.edge, b.edge) });
+  }
+
+  const ptName = e => 'точка на ребре ' + edgeName(solid, e);
+  const steps = [];
+  steps.push({
+    title: 'Дано',
+    text: 'Дано: ' + given.map((g, i) => POINT_NAMES[i] + ' — ' +
+      (g.edge ? 'на ребре ' + edgeName(solid, g.edge) : 'в точке (' + g.pos.x.toFixed(2) + '; ' + g.pos.y.toFixed(2) + '; ' + g.pos.z.toFixed(2) + ')')).join(', ') +
+      '. Через точки M, N, K проходит секущая плоскость.'
+  });
+
+  let traceText = 'Строим след секущей плоскости на плоскости основания (грань ' + faceName(solid, base.face) + '). ';
+  if (tps.length >= 2) {
+    traceText += 'Прямые ' + POINT_NAMES[tps[0].pair[0]] + POINT_NAMES[tps[0].pair[1]] + ' и ' +
+      POINT_NAMES[tps[1].pair[0]] + POINT_NAMES[tps[1].pair[1]] +
+      ' пересекают плоскость основания в точках X и Y. Прямая XY — след.';
+  } else if (tps.length === 1) {
+    traceText += 'Прямая ' + POINT_NAMES[tps[0].pair[0]] + POINT_NAMES[tps[0].pair[1]] +
+      ' пересекает плоскость основания в точке X; проводим след через X.';
+  } else {
+    traceText += 'Проводим прямую пересечения секущей плоскости с основанием.';
+  }
+  steps.push({ title: 'След секущей плоскости', text: traceText });
+
+  let interText = 'Пересечения следа с рёбрами основания: ';
+  if (inter.length === 0) interText += 'след не пересекает рёбра основания.';
+  else interText += inter.map(x => edgeName(solid, x.edge) + (x.onSeg ? ' (на ребре)' : ' (на продолжении)')).join('; ') +
+    '. Точки, попавшие на сами рёбра, — это вершины сечения.';
+  steps.push({ title: 'Вершины на основании', text: interText });
+
+  sides.forEach((s, k) => {
+    steps.push({
+      title: 'Сторона ' + (k + 1),
+      text: 'В грани ' + (s.face ? faceName(solid, s.face) : '—') + ' соединяем ' +
+        ptName(section[k].edge) + ' и ' + ptName(section[(k + 1) % section.length].edge) + '.'
+    });
+  });
+
+  steps.push({
+    title: 'Сечение построено',
+    text: 'Сечение — ' + polyName(section.length) + '. Вершины лежат на рёбрах: ' +
+      section.map(it => edgeName(solid, it.edge)).join(', ') + '.'
+  });
+
+  return { given, plane, section, base, trace, tps, inter, sides, steps };
+}
+
+function addFaceHighlightTo(group, face, color, opacity) {
+  const g = new THREE.BufferGeometry().setFromPoints(triangulateFace(currentSolid, face));
+  g.computeVertexNormals();
+  group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false })));
+}
+
+function addFaceHighlight(face, color, opacity) {
+  addFaceHighlightTo(explainGroup, face, color, opacity);
+}
+
+function renderExplanation(i) {
+  clearGroup(explainGroup);
+  const ex = explanation;
+
+  ex.given.forEach((g, k) => {
+    explainGroup.add(makePoint(g.pos, POINT_COLORS[k], 0.08));
+    explainGroup.add(labelAt(POINT_NAMES[k], POINT_COLORS[k], g.pos, 0.36));
+  });
+
+  if (i >= 1) {
+    addFaceHighlight(ex.base.face, 0xffe082, 0.3);
+    if (ex.trace) {
+      const p0 = ex.trace.point.clone().addScaledVector(ex.trace.dir, -10);
+      const p1 = ex.trace.point.clone().addScaledVector(ex.trace.dir, 10);
+      const line = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([p0, p1]),
+        new THREE.LineDashedMaterial({ color: 0x1565c0, dashSize: 0.2, gapSize: 0.13 })
+      );
+      line.computeLineDistances();
+      explainGroup.add(line);
+    }
+    ex.tps.slice(0, 2).forEach((t, k) => {
+      explainGroup.add(makePoint(t.pos, 0x1565c0, 0.07));
+      explainGroup.add(labelAt(k === 0 ? 'X' : 'Y', 0x1565c0, t.pos, 0.32));
+    });
+  }
+
+  if (i >= 2) {
+    ex.inter.forEach(x => explainGroup.add(makePoint(x.pos, x.onSeg ? 0x2e7d32 : 0x90a4ae, 0.06)));
+  }
+
+  const sideStart = 3;
+  for (let k = 0; k < ex.sides.length; k++) {
+    if (i >= sideStart + k) {
+      const s = ex.sides[k];
+      explainGroup.add(new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([s.a, s.b]),
+        new THREE.LineBasicMaterial({ color: 0x2e7d32 })
+      ));
+      explainGroup.add(makePoint(s.a, 0x2e7d32, 0.05));
+      explainGroup.add(makePoint(s.b, 0x2e7d32, 0.05));
+    }
+  }
+
+  if (i >= sideStart + ex.sides.length) {
+    addPolygon(explainGroup, ex.section, 0xffa726, 0.4, 0xff6d00, true);
+    ex.section.forEach((it, k) => explainGroup.add(labelAt(String(k + 1), 0xff6d00, it.pos, 0.28)));
+  }
+}
+
+function updateExplainBox() {
+  const ex = explanation, s = ex.steps[state.step];
+  const box = document.getElementById('explainBox');
+  box.classList.remove('hidden');
+  box.innerHTML =
+    '<div class="exTitle">Шаг ' + (state.step + 1) + ' из ' + ex.steps.length + ': ' + s.title + '</div>' +
+    '<div class="exText">' + s.text + '</div>' +
+    '<div class="row"><button id="exPrev"' + (state.step === 0 ? ' disabled' : '') + '>Назад</button>' +
+    '<button id="exNext"' + (state.step === ex.steps.length - 1 ? ' disabled' : '') + '>Далее</button>' +
+    '<button id="exClose">Закрыть</button></div>';
+  document.getElementById('exPrev').onclick = () => { if (state.step > 0) { state.step--; renderExplanation(state.step); updateExplainBox(); } };
+  document.getElementById('exNext').onclick = () => { if (state.step < ex.steps.length - 1) { state.step++; renderExplanation(state.step); updateExplainBox(); } };
+  document.getElementById('exClose').onclick = closeExplanation;
+}
+
+function openExplanation() {
+  const ex = buildExplanation();
+  if (!ex) { alert('Не удалось построить объяснение для этой конфигурации.'); return; }
+  explanation = ex;
+  state.explaining = true;
+  state.step = 0;
+  state.lineStart = null;
+  clearGroup(previewGroup);
+  taskGroup.visible = false; pointsGroup.visible = false; sectionGroup.visible = false; sketchGroup.visible = false;
+  document.getElementById('dynamic').style.display = 'none';
+  renderExplanation(0);
+  updateExplainBox();
+}
+
+function closeExplanation() {
+  state.explaining = false;
+  clearGroup(explainGroup);
+  taskGroup.visible = true; pointsGroup.visible = true; sectionGroup.visible = true; sketchGroup.visible = true;
+  document.getElementById('explainBox').classList.add('hidden');
+  document.getElementById('dynamic').style.display = '';
+  updatePanel();
+}
+
+/* ---------- init ---------- */
+document.querySelectorAll('#bodySeg button').forEach(b => b.onclick = () => setBody(b.dataset.body));
+document.querySelectorAll('#modeSeg button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+document.querySelectorAll('#toolSeg button').forEach(b => b.onclick = () => setTool(b.dataset.tool));
+document.getElementById('chkExtend').onchange = e => { state.extend = e.target.checked; };
+document.getElementById('chkFace').onchange = e => { state.byFace = e.target.checked; state.faceLock = null; state.lineStart = null; clearGroup(previewGroup); renderSketch(); };
+document.getElementById('btnUndoLine').onclick = () => { state.sketch.pop(); state.lineStart = null; clearGroup(previewGroup); renderSketch(); };
+document.getElementById('btnClearSketch').onclick = () => clearSketch();
+document.getElementById('btnClearAll').onclick = clearAll;
+
+buildSolid(state.body);
+updateSegActive();
+updatePanel();
+resize();
+animate();
+</script>
+</body>
+</html>
